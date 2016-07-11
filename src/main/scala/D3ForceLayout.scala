@@ -80,26 +80,10 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
 
   def renderVertexArea(p: Props, s: State) = {
     import p._
-    <.svg.svg(
-      ^.width := s"${width}px",
-      ^.height := s"${height}px",
-      ^.position := "absolute",
-      <.svg.g(
-        ^.ref := "vertices"
-      )
-    )
   }
 
   def renderEdgeArea(p: Props, s: State) = {
     import p._
-    <.svg.svg(
-      ^.width := s"${width}px",
-      ^.height := s"${height}px",
-      ^.position := "absolute",
-      <.svg.g(
-        ^.ref := "edges"
-      )
-    )
   }
 
   def render(p: Props, s: State) = {
@@ -111,14 +95,23 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
         ^.height := s"${height}px",
         ^.position := "relative",
         ^.border := "1px solid #DDD",
-        renderEdgeArea(p, s),
-        renderVertexArea(p, s)
+        <.svg.svg(
+          ^.width := s"${width}px",
+          ^.height := s"${height}px",
+          ^.position := "absolute",
+          <.svg.g(
+            ^.ref := "edges"
+          ),
+          <.svg.g(
+            ^.ref := "vertices"
+          )
+        )
       )
     )
   }
 
-  def vertexTag = "circle"
-  def edgeTag = "line"
+  def vertexElement = "circle"
+  def edgeElement = "line"
 
   def positionVertices(sel: VertexSelection): VertexSelection = {
     sel
@@ -148,7 +141,6 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
   class Backend($: BackendScope[Props, State]) {
 
     def updateData(p: Props, s: State) = Callback {
-      // println("update")
       import p._
       import s._
 
@@ -159,7 +151,6 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
         oldVertices.get(v) match {
           case Some(d3v) => d3v
           case None =>
-            // println(s" new v instance: $v")
             val newD3V = new D3Vertex(v)
             removedD3Vertices.headOption.foreach { removed =>
               newD3V.x = removed.x
@@ -180,7 +171,6 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
           case Some(d3e) =>
             d3e
           case None =>
-            // println(s" new e instance: $e")
             new D3Edge(e, vertexMap(e.source), vertexMap(e.target))
         }
       }.toJSArray
@@ -193,8 +183,8 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       import p._
       import s._
 
-      lazy val domVerticesSel = d3.select(vertexGroupRef($).get).selectAll(vertexTag)
-      lazy val domEdgesSel = d3.select(edgeGroupRef($).get).selectAll(edgeTag)
+      lazy val domVerticesSel = d3.select(vertexGroupRef($).get).selectAll(vertexElement)
+      lazy val domEdgesSel = d3.select(edgeGroupRef($).get).selectAll(edgeElement)
       if (panAndZoom) {
         zoom = zoom.scaleExtent((minZoom, maxZoom)).on("zoom", zoomed _)
         d3.select(containerRef($).get).call(zoom)
@@ -203,7 +193,7 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       vertexSel = vertexSel.getOrElse(domVerticesSel).data(vertexData)
       for (v <- vertexSel) {
         v.exit().remove()
-        v.enter().append(vertexTag)
+        v.enter().append(vertexElement)
         styleVertices(v)
         positionVertices(v)
       }
@@ -251,7 +241,13 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
     .backend(new Backend(_))
     .renderPS((_, p, s) => render(p, s))
     .componentDidMount(c => c.backend.update(c.props, c.state) >> c.backend.registerTick(c.state))
-    .shouldComponentUpdate(c => { c.$.backend.update(c.currentProps, c.currentState).runNow(); false }) // let d3 update, instead of react
+    .shouldComponentUpdate(c => {
+      if( c.nextProps != c.currentProps ) {
+        c.$.backend.update(c.nextProps, c.nextState).runNow()
+        c.$.backend.registerTick(c.currentState).runNow()
+      }
+      false // let d3 handle the update, instead of react
+    })
     .componentWillUnmount(c => c.backend.stopForce(c.state))
     .build
 
