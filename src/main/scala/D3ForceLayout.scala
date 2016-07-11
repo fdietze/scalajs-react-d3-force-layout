@@ -17,8 +17,9 @@ import japgolly.scalajs.react.vdom.prefix_<^._
 import org.singlespaced.d3js
 import org.singlespaced.d3js.d3
 import org.singlespaced.d3js.Ops._
-import org.singlespaced.d3js.Link
+import org.singlespaced.d3js.{Link, ZoomEvent}
 import org.singlespaced.d3js.forceModule.Force
+import org.singlespaced.d3js.behavior.Zoom
 
 import js.JSConverters._
 import scalax.collection.Graph
@@ -48,6 +49,7 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
 
   case class State(
     force: Force[D3Vertex, D3Edge],
+    var zoom: Zoom[Unit],
     var vertexData: js.Array[D3Vertex],
     var edgeData: js.Array[D3Edge],
     var vertexSel: js.UndefOr[VertexSelection] = js.undefined,
@@ -66,13 +68,15 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
         .linkDistance((d: D3Edge, _: Double) => linkDistance(d.e))
         .linkStrength((d: D3Edge, _: Double) => linkStrength(d.e))
         .size((width, height)),
+      zoom = d3.behavior.zoom(),
       vertexData = js.Array(),
       edgeData = js.Array()
     )
   }
 
-  val vertexGroupRef = Ref[raw.HTMLCanvasElement]("vertices")
-  val edgeGroupRef = Ref[raw.HTMLCanvasElement]("edges")
+  val containerRef = Ref[raw.HTMLElement]("container")
+  val vertexGroupRef = Ref[raw.SVGElement]("vertices")
+  val edgeGroupRef = Ref[raw.SVGElement]("edges")
 
   def renderVertexArea(p: Props, s: State) = {
     import p._
@@ -80,7 +84,9 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       ^.width := s"${width}px",
       ^.height := s"${height}px",
       ^.position := "absolute",
-      ^.ref := "vertices"
+      <.svg.g(
+        ^.ref := "vertices"
+      )
     )
   }
 
@@ -90,7 +96,9 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       ^.width := s"${width}px",
       ^.height := s"${height}px",
       ^.position := "absolute",
-      ^.ref := "edges"
+      <.svg.g(
+        ^.ref := "edges"
+      )
     )
   }
 
@@ -98,6 +106,7 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
     import p._
     <.div(
       <.div(
+        ^.ref := "container",
         ^.width := s"${width}px",
         ^.height := s"${height}px",
         ^.position := "relative",
@@ -109,7 +118,7 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
   }
 
   def vertexTag = "circle"
-  def lineTag = "circle"
+  def edgeTag = "line"
 
   def positionVertices(sel: VertexSelection): VertexSelection = {
     sel
@@ -132,6 +141,9 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
   }
 
   val reuseVertexCoordinatesOnUpdate = false
+  val panAndZoom = true
+  val minZoom: Double = 0.1
+  val maxZoom: Double = 10
 
   class Backend($: BackendScope[Props, State]) {
 
@@ -180,8 +192,13 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
     def updateVisualization(p: Props, s: State) = Callback {
       import p._
       import s._
+
       lazy val domVerticesSel = d3.select(vertexGroupRef($).get).selectAll(vertexTag)
-      lazy val domEdgesSel = d3.select(edgeGroupRef($).get).selectAll("line")
+      lazy val domEdgesSel = d3.select(edgeGroupRef($).get).selectAll(edgeTag)
+      if (panAndZoom) {
+        zoom = zoom.scaleExtent((minZoom, maxZoom)).on("zoom", zoomed _)
+        d3.select(containerRef($).get).call(zoom)
+      }
 
       vertexSel = vertexSel.getOrElse(domVerticesSel).data(vertexData)
       for (v <- vertexSel) {
@@ -200,6 +217,15 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
 
       force.nodes(vertexData).links(edgeData)
       force.start()
+    }
+
+    def zoomed(y: Unit, x: Double) {
+      val vertexContainer = d3.select(vertexGroupRef($).get)
+      val edgeContainer = d3.select(edgeGroupRef($).get)
+
+      val e = d3.event.asInstanceOf[ZoomEvent]
+      vertexContainer.attr("transform", "translate(" + e.translate + ")scale(" + e.scale + ")")
+      edgeContainer.attr("transform", "translate(" + e.translate + ")scale(" + e.scale + ")")
     }
 
     def update(p: Props, s: State): Callback = updateData(p, s) >> updateVisualization(p, s)
