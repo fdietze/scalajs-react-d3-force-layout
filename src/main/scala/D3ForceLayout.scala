@@ -133,6 +133,13 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       .style("fill", "steelblue")
   }
 
+  def styleEdges(sel: EdgeSelection): EdgeSelection = {
+    sel
+      .style("stroke", "#666")
+      .style("stroke-width", 2)
+  }
+
+
   val reuseVertexCoordinatesOnUpdate = false
   val panAndZoom = true
   val minZoom: Double = 0.1
@@ -199,11 +206,12 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       }
 
       edgeSel = edgeSel.getOrElse(domEdgesSel).data(edgeData)
-      edgeSel.get.exit().remove()
-      edgeSel.get.enter().append("line")
-      positionEdges(edgeSel.get)
-        .style("stroke", "#666")
-        .style("stroke-width", 2)
+      for( e <- edgeSel) {
+        e.exit().remove()
+        e.enter().append(edgeElement)
+        styleEdges(e)
+        positionEdges(e)
+      }
 
       force.nodes(vertexData).links(edgeData)
       force.start()
