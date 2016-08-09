@@ -8,9 +8,6 @@ organization := "com.github.fdietze"
 
 scalaJSUseRhino in Global := false // execute js with node
 
-// workaround for: https://github.com/scala-js/scala-js/issues/2491
-scalaJSOptimizerOptions in (Compile, fullOptJS) ~= { _.withUseClosureCompiler(false) }
-
 libraryDependencies ++= (
   "org.scala-js" %%% "scalajs-dom" % "0.9.1" ::
   "com.github.japgolly.scalajs-react" %%% "core" % "0.11.1" ::
