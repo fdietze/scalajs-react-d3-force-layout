@@ -12,7 +12,7 @@ libraryDependencies ++= (
   "org.scala-js" %%% "scalajs-dom" % "0.9.1" ::
   "com.github.japgolly.scalajs-react" %%% "core" % "0.11.1" ::
   "org.singlespaced" %%% "scalajs-d3" % "0.3.3" ::
-  "com.assembla.scala-incubator" %%% "graph-core" % "1.11.0" ::
+  "org.scala-graph" %%% "graph-core" % "1.11.1" ::
   Nil
 )
 
