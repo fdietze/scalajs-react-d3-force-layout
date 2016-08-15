@@ -56,6 +56,12 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
     var edgeSel: js.UndefOr[EdgeSelection] = js.undefined
   )
 
+  def chargeDistance: Double = Double.PositiveInfinity
+  def theta: Double = 0.8
+  def gravity: Double = 0.1
+  def friction: Double = 0.9
+
+  //TODO: provide a way to set a constant instead of a function
   def charge(v: V): Double = -30
   def linkDistance(v: E[V]): Double = 20
   def linkStrength(v: E[V]): Double = 3
@@ -65,6 +71,10 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
     State(
       force = d3.layout.force[D3Vertex, D3Edge]()
         .charge((d: D3Vertex, _: Double) => charge(d.v))
+        .chargeDistance(chargeDistance)
+        .theta(theta)
+        .gravity(gravity)
+        .friction(friction)
         .linkDistance((d: D3Edge, _: Double) => linkDistance(d.e))
         .linkStrength((d: D3Edge, _: Double) => linkStrength(d.e))
         .size((width, height)),
