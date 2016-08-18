@@ -162,12 +162,12 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       import s._
 
       val newVertices = p.graph.nodes.map((v: Graph[V, E]#NodeT) => v.value)
-      var removedD3Vertices: List[D3Vertex] = if (reuseVertexCoordinatesOnUpdate) vertexData.filterNot(d => newVertices contains d.v).toList else Nil
       val oldVertices = vertexData.map(d => d.v -> d).toMap
-      val newD3Vertices = newVertices.map { v =>
-        oldVertices.get(v) match {
-          case Some(d3v) => d3v
-          case None =>
+
+      val newD3Vertices = if (reuseVertexCoordinatesOnUpdate) {
+        var removedD3Vertices: List[D3Vertex] = vertexData.filterNot(d => newVertices contains d.v).toList
+        newVertices.map { v =>
+          oldVertices.getOrElse(v, {
             val newD3V = new D3Vertex(v)
             removedD3Vertices.headOption.foreach { removed =>
               newD3V.x = removed.x
@@ -177,19 +177,18 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
               removedD3Vertices = removedD3Vertices.tail
             }
             newD3V
-        }
-      }.toJSArray
+          })
+        }.toJSArray
+      }
+      else
+        newVertices.map { v => oldVertices.getOrElse(v,  new D3Vertex(v) ) }.toJSArray
+
 
       val vertexMap = newD3Vertices.map(d => d.v -> d).toMap
       val oldEdges = edgeData.map(d => (d.e -> d)).toMap
       val newEdges = p.graph.edges.map { e_inner: Graph[V, E]#EdgeT =>
         val e = e_inner.toOuter
-        oldEdges.get(e) match {
-          case Some(d3e) =>
-            d3e
-          case None =>
-            new D3Edge(e, vertexMap(e.source), vertexMap(e.target))
-        }
+        oldEdges.getOrElse(e, new D3Edge(e, vertexMap(e.source), vertexMap(e.target)))
       }.toJSArray
 
       vertexData = newD3Vertices
