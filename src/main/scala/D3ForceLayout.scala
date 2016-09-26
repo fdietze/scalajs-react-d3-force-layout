@@ -22,18 +22,16 @@ import org.singlespaced.d3js.forceModule.Force
 import org.singlespaced.d3js.behavior.Zoom
 
 import js.JSConverters._
-import scalax.collection.Graph
-import scalax.collection.GraphPredef._
-import scalax.collection.GraphEdge._
+import pharg._
 
-trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
+trait D3ForceLayout[V] {
 
   class D3Vertex(
     val v: V
   ) extends d3js.forceModule.Node
 
   class D3Edge(
-    val e: E[V],
+    val e: Edge[V],
     @(JSExport @field) var source: D3Vertex,
     @(JSExport @field) var target: D3Vertex
   ) extends d3js.Link[D3Vertex]
@@ -42,7 +40,7 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
   type EdgeSelection = d3js.selection.Update[D3Edge]
 
   case class Props(
-    graph: Graph[V, E],
+    graph: DirectedGraph[V],
     width: Double,
     height: Double
   )
@@ -63,8 +61,8 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
 
   //TODO: provide a way to set a constant instead of a function
   def charge(v: V): Double = -30
-  def linkDistance(v: E[V]): Double = 20
-  def linkStrength(v: E[V]): Double = 3
+  def linkDistance(v: Edge[V]): Double = 20
+  def linkStrength(v: Edge[V]): Double = 3
 
   private def initialState(p: Props): State = {
     import p._
@@ -161,7 +159,7 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
       import p._
       import s._
 
-      val newVertices = p.graph.nodes.map((v: Graph[V, E]#NodeT) => v.value)
+      val newVertices = p.graph.vertices
       val oldVertices = vertexData.map(d => d.v -> d).toMap
 
       val newD3Vertices = if (reuseVertexCoordinatesOnUpdate) {
@@ -186,9 +184,8 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
 
       val vertexMap = newD3Vertices.map(d => d.v -> d).toMap
       val oldEdges = edgeData.map(d => (d.e -> d)).toMap
-      val newEdges = p.graph.edges.map { e_inner: Graph[V, E]#EdgeT =>
-        val e = e_inner.toOuter
-        oldEdges.getOrElse(e, new D3Edge(e, vertexMap(e.source), vertexMap(e.target)))
+      val newEdges = p.graph.edges.map { e =>
+        oldEdges.getOrElse(e, new D3Edge(e, vertexMap(e.in), vertexMap(e.out)))
       }.toJSArray
 
       vertexData = newD3Vertices
@@ -268,5 +265,5 @@ trait D3ForceLayout[V, E[X] <: DiEdgeLikeIn[X]] {
     .componentWillUnmount(c => c.backend.stopForce(c.state))
     .build
 
-  def apply(graph: Graph[V, E], width: Double, height: Double) = component(Props(graph, width, height))
+  def apply(graph: DirectedGraph[V], width: Double, height: Double) = component(Props(graph, width, height))
 }
