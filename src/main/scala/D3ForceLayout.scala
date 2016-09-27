@@ -24,7 +24,7 @@ import org.singlespaced.d3js.behavior.Zoom
 import js.JSConverters._
 import pharg._
 
-trait D3ForceLayout[V] {
+trait D3ForceLayout[V, P] {
 
   class D3Vertex(
     val v: V
@@ -42,7 +42,8 @@ trait D3ForceLayout[V] {
   case class Props(
     graph: DirectedGraph[V],
     width: Double,
-    height: Double
+    height: Double,
+    props: Option[P] = None
   )
 
   case class State(
@@ -60,22 +61,29 @@ trait D3ForceLayout[V] {
   def friction: Double = 0.9
 
   //TODO: provide a way to set a constant instead of a function
-  def charge(v: V): Double = -30
-  def linkDistance(v: Edge[V]): Double = 20
-  def linkStrength(v: Edge[V]): Double = 3
+  def charge(p: Props, v: V): Double = -30
+  def linkDistance(p: Props, e: Edge[V]): Double = 20
+  def linkStrength(p: Props, e: Edge[V]): Double = 3
 
-  private def initialState(p: Props): State = {
+  def updateForce(p: Props, force:Force[D3Vertex, D3Edge]):Force[D3Vertex, D3Edge] = {
     import p._
-    State(
-      force = d3.layout.force[D3Vertex, D3Edge]()
-        .charge((d: D3Vertex, _: Double) => charge(d.v))
+    force
+        .charge((d: D3Vertex, _: Double) => charge(p, d.v))
         .chargeDistance(chargeDistance)
         .theta(theta)
         .gravity(gravity)
         .friction(friction)
-        .linkDistance((d: D3Edge, _: Double) => linkDistance(d.e))
-        .linkStrength((d: D3Edge, _: Double) => linkStrength(d.e))
-        .size((width, height)),
+        .linkDistance((d: D3Edge, _: Double) => linkDistance(p, d.e))
+        .linkStrength((d: D3Edge, _: Double) => linkStrength(p, d.e))
+        .size((width, height))
+
+    force
+  }
+
+  private def initialState(p: Props): State = {
+    import p._
+    State(
+      force = updateForce(p, d3.layout.force[D3Vertex, D3Edge]()),
       zoom = d3.behavior.zoom(),
       vertexData = js.Array(),
       edgeData = js.Array()
@@ -135,13 +143,13 @@ trait D3ForceLayout[V] {
       .attr("y2", (d: D3Edge) => d.target.y)
   }
 
-  def styleVertices(sel: VertexSelection): VertexSelection = {
+  def styleVertices(g: DirectedGraph[V], sel: VertexSelection): VertexSelection = {
     sel
       .attr("r", (d: D3Vertex) => 5)
       .style("fill", "steelblue")
   }
 
-  def styleEdges(sel: EdgeSelection): EdgeSelection = {
+  def styleEdges(g: DirectedGraph[V], sel: EdgeSelection): EdgeSelection = {
     sel
       .style("stroke", "#666")
       .style("stroke-width", 2)
@@ -207,7 +215,7 @@ trait D3ForceLayout[V] {
       for (v <- vertexSel) {
         v.exit().remove()
         v.enter().append(vertexElement)
-        styleVertices(v)
+        styleVertices(p.graph, v)
         positionVertices(v)
       }
 
@@ -215,10 +223,11 @@ trait D3ForceLayout[V] {
       for( e <- edgeSel) {
         e.exit().remove()
         e.enter().append(edgeElement)
-        styleEdges(e)
+        styleEdges(p.graph, e)
         positionEdges(e)
       }
 
+      updateForce(p, force)
       force.nodes(vertexData).links(edgeData)
       force.start()
     }
@@ -250,7 +259,7 @@ trait D3ForceLayout[V] {
 
   }
 
-  private val component = ReactComponentB[Props]("SmartComponent")
+  protected val component = ReactComponentB[Props]("SmartComponent")
     .initialState_P(initialState)
     .backend(new Backend(_))
     .renderPS((_, p, s) => render(p, s))
@@ -265,5 +274,5 @@ trait D3ForceLayout[V] {
     .componentWillUnmount(c => c.backend.stopForce(c.state))
     .build
 
-  def apply(graph: DirectedGraph[V], width: Double, height: Double) = component(Props(graph, width, height))
+  def apply(graph: DirectedGraph[V], width: Double, height: Double, props:Option[P]) = component(Props(graph, width, height, props))
 }
