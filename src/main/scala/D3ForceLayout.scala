@@ -55,9 +55,9 @@ trait D3ForceLayout[V, P] {
     var edgeSel: js.UndefOr[EdgeSelection] = js.undefined
   )
 
-  def chargeDistance: Double = Double.PositiveInfinity
+  def chargeDistance(p: Props): Double = Double.PositiveInfinity
   def theta: Double = 0.8
-  def gravity: Double = 0.1
+  def gravity(p: Props): Double = 0.1
   def friction: Double = 0.9
 
   //TODO: provide a way to set a constant instead of a function
@@ -69,9 +69,9 @@ trait D3ForceLayout[V, P] {
     import p._
     force
         .charge((d: D3Vertex, _: Double) => charge(p, d.v))
-        .chargeDistance(chargeDistance)
+        .chargeDistance(chargeDistance(p))
         .theta(theta)
-        .gravity(gravity)
+        .gravity(gravity(p))
         .friction(friction)
         .linkDistance((d: D3Edge, _: Double) => linkDistance(p, d.e))
         .linkStrength((d: D3Edge, _: Double) => linkStrength(p, d.e))
