@@ -143,13 +143,13 @@ trait D3ForceLayout[V, P] {
       .attr("y2", (d: D3Edge) => d.target.y)
   }
 
-  def styleVertices(g: DirectedGraph[V], sel: VertexSelection): VertexSelection = {
+  def styleVertices(p: Props, sel: VertexSelection): VertexSelection = {
     sel
       .attr("r", (d: D3Vertex) => 5)
       .style("fill", "steelblue")
   }
 
-  def styleEdges(g: DirectedGraph[V], sel: EdgeSelection): EdgeSelection = {
+  def styleEdges(p: Props, sel: EdgeSelection): EdgeSelection = {
     sel
       .style("stroke", "#666")
       .style("stroke-width", 2)
@@ -215,7 +215,7 @@ trait D3ForceLayout[V, P] {
       for (v <- vertexSel) {
         v.exit().remove()
         v.enter().append(vertexElement)
-        styleVertices(p.graph, v)
+        styleVertices(p, v)
         positionVertices(v)
       }
 
@@ -223,7 +223,7 @@ trait D3ForceLayout[V, P] {
       for( e <- edgeSel) {
         e.exit().remove()
         e.enter().append(edgeElement)
-        styleEdges(p.graph, e)
+        styleEdges(p, e)
         positionEdges(e)
       }
 
