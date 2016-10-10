@@ -43,8 +43,14 @@ trait D3ForceLayout[V, P] {
     graph: DirectedGraph[V],
     width: Double,
     height: Double,
-    props: Option[P] = None
-  )
+    private val _props: Option[P] = None
+  ) {
+    lazy val props = _props.get
+  }
+
+  def shouldUpdateForce(current:Props, next:Props) = true
+  def shouldUpdateGraph(current:Props, next:Props) = current.graph != next.graph
+  def shouldUpdateVisualization(current:Props, next:Props) = true
 
   case class State(
     force: Force[D3Vertex, D3Edge],
@@ -227,10 +233,17 @@ trait D3ForceLayout[V, P] {
         positionEdges(e)
       }
 
+    }
+
+    def initForce(p:Props, s:State) = Callback {
+      import p._
+      import s._
+
       updateForce(p, force)
       force.nodes(vertexData).links(edgeData)
       force.start()
     }
+
 
     def zoomed(y: Unit, x: Double) {
       val vertexContainer = d3.select(vertexGroupRef($).get)
@@ -263,11 +276,24 @@ trait D3ForceLayout[V, P] {
     .initialState_P(initialState)
     .backend(new Backend(_))
     .renderPS((_, p, s) => render(p, s))
-    .componentDidMount(c => c.backend.update(c.props, c.state) >> c.backend.registerTick(c.state))
+    .componentDidMount(c => c.backend.update(c.props, c.state) >> c.backend.initForce(c.props, c.state) >> c.backend.registerTick(c.state))
     .shouldComponentUpdate(c => {
       if( c.nextProps != c.currentProps ) {
-        c.$.backend.update(c.nextProps, c.nextState).runNow()
-        c.$.backend.registerTick(c.currentState).runNow()
+        if(shouldUpdateGraph(c.currentProps, c.nextProps)) {
+          c.$.backend.updateData(c.nextProps, c.nextState).runNow()
+          c.$.backend.updateVisualization(c.nextProps, c.nextState).runNow()
+          c.$.backend.initForce(c.nextProps, c.nextState).runNow()
+          c.$.backend.registerTick(c.currentState).runNow()
+        } else {
+
+          if(shouldUpdateVisualization(c.currentProps, c.nextProps) ) {
+            c.$.backend.updateVisualization(c.nextProps, c.nextState).runNow()
+          }
+
+          if( shouldUpdateForce(c.currentProps, c.nextProps))
+            c.$.backend.initForce(c.nextProps, c.nextState).runNow()
+        }
+
       }
       false // let d3 handle the update, instead of react
     })
