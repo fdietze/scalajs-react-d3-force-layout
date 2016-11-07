@@ -7,7 +7,7 @@ version := "0.1.0-SNAPSHOT"
 scalaVersion := "2.11.8"
 libraryDependencies ++= (
   "org.scala-js" %%% "scalajs-dom" % "0.9.1" ::
-  "com.github.japgolly.scalajs-react" %%% "core" % "0.11.1" ::
+  "com.github.japgolly.scalajs-react" %%% "core" % "0.11.3" ::
   "org.singlespaced" %%% "scalajs-d3" % "0.3.3" ::
   "com.github.fdietze" %%% "pharg" % "0.1.0-SNAPSHOT" ::
   Nil
