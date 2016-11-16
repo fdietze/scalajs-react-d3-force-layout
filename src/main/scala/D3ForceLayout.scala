@@ -23,6 +23,7 @@ import org.singlespaced.d3js.behavior.Zoom
 
 import js.JSConverters._
 import pharg._
+import vectory._
 
 trait D3ForceLayout[V, P] {
 
@@ -41,8 +42,7 @@ trait D3ForceLayout[V, P] {
 
   case class Props(
     graph: DirectedGraph[V],
-    width: Double,
-    height: Double,
+    dimensions: Vec2,
     private val _props: Option[P] = None
   ) {
     lazy val props = _props.get
@@ -72,6 +72,7 @@ trait D3ForceLayout[V, P] {
   def linkStrength(p: Props, e: Edge[V]): Double = 3
 
   def updateForce(p: Props, force:Force[D3Vertex, D3Edge]):Force[D3Vertex, D3Edge] = {
+    println("updateForce")
     import p._
     force
         .charge((d: D3Vertex, _: Double) => charge(p, d.v))
@@ -81,7 +82,7 @@ trait D3ForceLayout[V, P] {
         .friction(friction)
         .linkDistance((d: D3Edge, _: Double) => linkDistance(p, d.e))
         .linkStrength((d: D3Edge, _: Double) => linkStrength(p, d.e))
-        .size((width, height))
+        .size((dimensions.width, dimensions.height))
 
     force
   }
@@ -108,25 +109,23 @@ trait D3ForceLayout[V, P] {
     import p._
   }
 
+
   def render(p: Props, s: State) = {
     import p._
     <.div(
-      <.div(
-        ^.ref := "container",
-        ^.width := s"${width}px",
-        ^.height := s"${height}px",
-        ^.position := "relative",
-        ^.border := "1px solid #DDD",
-        <.svg.svg(
-          ^.width := s"${width}px",
-          ^.height := s"${height}px",
-          ^.position := "absolute",
-          <.svg.g(
-            ^.ref := "edges"
-          ),
-          <.svg.g(
-            ^.ref := "vertices"
-          )
+      ^.ref := "container",
+      ^.width := "100%",
+      ^.height := "100%",
+      ^.position := "relative",
+      <.svg.svg(
+        ^.width := "100%",
+        ^.height := "100%",
+        ^.position := "absolute",
+        <.svg.g(
+          ^.ref := "edges"
+        ),
+        <.svg.g(
+          ^.ref := "vertices"
         )
       )
     )
@@ -240,6 +239,7 @@ trait D3ForceLayout[V, P] {
       import s._
 
       updateForce(p, force)
+
       force.nodes(vertexData).links(edgeData)
       force.start()
     }
@@ -270,6 +270,33 @@ trait D3ForceLayout[V, P] {
       s.force.stop()
     }
 
+    def moveOldCenterToNewCenter(currentDim:Vec2, nextDim:Vec2, s: State) {
+      import s._
+      println(s"moveOldCenterToNewCenter, zoom: $zoom")
+      val vertexContainer = d3.select(vertexGroupRef($).get)
+      val edgeContainer = d3.select(edgeGroupRef($).get)
+
+      // val e = d3.event.asInstanceOf[ZoomEvent]
+      // vertexContainer.attr("transform", "translate(" + e.translate + ")scale(" + e.scale + ")")
+      // edgeContainer.attr("transform", "translate(" + e.translate + ")scale(" + e.scale + ")")
+
+
+
+      val centerDiff = (nextDim - currentDim) / 2
+      println(s"centerDiff")
+      val oldTranslate = zoom.translate()
+      val translate = (oldTranslate._1 + centerDiff.width, oldTranslate._2 + centerDiff.height);
+      zoom.translate(translate)
+
+      // if (duration > 0) {
+      //   this.d3HtmlContainer.transition().duration(duration).call(this.zoom.translate(translate).event);
+      //   this.d3SvgContainer.transition().duration(duration).call(this.zoom.translate(translate).event);
+      // } else {
+      //   // skip animation if duration is zero
+      //   this.d3HtmlContainer.call(this.zoom.translate(translate).event);
+      //   this.d3SvgContainer.call(this.zoom.translate(translate).event);
+      // }
+    }
   }
 
   protected val component = ReactComponentB[Props]("SmartComponent")
@@ -278,6 +305,7 @@ trait D3ForceLayout[V, P] {
     .renderPS((_, p, s) => render(p, s))
     .componentDidMount(c => c.backend.update(c.props, c.state) >> c.backend.initForce(c.props, c.state) >> c.backend.registerTick(c.state))
     .shouldComponentUpdate(c => {
+      println(s"shouldUpdate? ${c.nextProps.dimensions} == ${c.currentProps.dimensions}")
       if( c.nextProps != c.currentProps ) {
         if(shouldUpdateGraph(c.currentProps, c.nextProps)) {
           c.$.backend.updateData(c.nextProps, c.nextState).runNow()
@@ -293,12 +321,12 @@ trait D3ForceLayout[V, P] {
           if( shouldUpdateForce(c.currentProps, c.nextProps))
             c.$.backend.initForce(c.nextProps, c.nextState).runNow()
         }
-
+        c.$.backend.moveOldCenterToNewCenter(c.currentProps.dimensions, c.nextProps.dimensions, c.nextState)
       }
       false // let d3 handle the update, instead of react
     })
     .componentWillUnmount(c => c.backend.stopForce(c.state))
     .build
 
-  def apply(graph: DirectedGraph[V], width: Double, height: Double, props:Option[P]) = component(Props(graph, width, height, props))
+  def apply(graph: DirectedGraph[V], dimensions: Vec2, props:Option[P]) = component(Props(graph, dimensions, props))
 }

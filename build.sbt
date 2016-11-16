@@ -10,6 +10,7 @@ libraryDependencies ++= (
   "com.github.japgolly.scalajs-react" %%% "core" % "0.11.3" ::
   "org.singlespaced" %%% "scalajs-d3" % "0.3.4-SNAPSHOT" ::
   "com.github.fdietze" %%% "pharg" % "0.1.0-SNAPSHOT" ::
+  "com.github.fdietze" %%% "vectory" % "0.1.0-SNAPSHOT" ::
   Nil
 )
 
