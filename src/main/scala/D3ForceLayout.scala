@@ -65,6 +65,7 @@ trait D3ForceLayout[V, P] {
   def theta: Double = 0.8
   def gravity(p: Props): Double = 0.1
   def friction: Double = 0.9
+  def initialSize: (Double,Double) = (100.0, 100.0)
 
   //TODO: provide a way to set a constant instead of a function
   def charge(p: Props, v: V): Double = -30
@@ -81,7 +82,7 @@ trait D3ForceLayout[V, P] {
         .friction(friction)
         .linkDistance((d: D3Edge, _: Double) => linkDistance(p, d.e))
         .linkStrength((d: D3Edge, _: Double) => linkStrength(p, d.e))
-        .size((dimensions.width, dimensions.height))
+        .size(initialSize)
 
     force
   }
