@@ -72,7 +72,6 @@ trait D3ForceLayout[V, P] {
   def linkStrength(p: Props, e: Edge[V]): Double = 3
 
   def updateForce(p: Props, force:Force[D3Vertex, D3Edge]):Force[D3Vertex, D3Edge] = {
-    println("updateForce")
     import p._
     force
         .charge((d: D3Vertex, _: Double) => charge(p, d.v))
@@ -272,30 +271,15 @@ trait D3ForceLayout[V, P] {
 
     def moveOldCenterToNewCenter(currentDim:Vec2, nextDim:Vec2, s: State) {
       import s._
-      println(s"moveOldCenterToNewCenter, zoom: $zoom")
-      val vertexContainer = d3.select(vertexGroupRef($).get)
-      val edgeContainer = d3.select(edgeGroupRef($).get)
-
-      // val e = d3.event.asInstanceOf[ZoomEvent]
-      // vertexContainer.attr("transform", "translate(" + e.translate + ")scale(" + e.scale + ")")
-      // edgeContainer.attr("transform", "translate(" + e.translate + ")scale(" + e.scale + ")")
-
-
 
       val centerDiff = (nextDim - currentDim) / 2
-      println(s"centerDiff")
-      val oldTranslate = zoom.translate()
-      val translate = (oldTranslate._1 + centerDiff.width, oldTranslate._2 + centerDiff.height);
-      zoom.translate(translate)
+      val newTranslate = Vec2(zoom.translate()) + centerDiff
+      zoom.translate(newTranslate.toTuple)
 
-      // if (duration > 0) {
-      //   this.d3HtmlContainer.transition().duration(duration).call(this.zoom.translate(translate).event);
-      //   this.d3SvgContainer.transition().duration(duration).call(this.zoom.translate(translate).event);
-      // } else {
-      //   // skip animation if duration is zero
-      //   this.d3HtmlContainer.call(this.zoom.translate(translate).event);
-      //   this.d3SvgContainer.call(this.zoom.translate(translate).event);
-      // }
+      val vertexContainer = d3.select(vertexGroupRef($).get)
+      val edgeContainer = d3.select(edgeGroupRef($).get)
+      vertexContainer.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")")
+      edgeContainer.attr("transform", "translate(" + zoom.translate() + ")scale(" + zoom.scale() + ")")
     }
   }
 
@@ -305,7 +289,6 @@ trait D3ForceLayout[V, P] {
     .renderPS((_, p, s) => render(p, s))
     .componentDidMount(c => c.backend.update(c.props, c.state) >> c.backend.initForce(c.props, c.state) >> c.backend.registerTick(c.state))
     .shouldComponentUpdate(c => {
-      println(s"shouldUpdate? ${c.nextProps.dimensions} == ${c.currentProps.dimensions}")
       if( c.nextProps != c.currentProps ) {
         if(shouldUpdateGraph(c.currentProps, c.nextProps)) {
           c.$.backend.updateData(c.nextProps, c.nextState).runNow()
@@ -321,7 +304,9 @@ trait D3ForceLayout[V, P] {
           if( shouldUpdateForce(c.currentProps, c.nextProps))
             c.$.backend.initForce(c.nextProps, c.nextState).runNow()
         }
-        c.$.backend.moveOldCenterToNewCenter(c.currentProps.dimensions, c.nextProps.dimensions, c.nextState)
+
+        if( c.nextProps.dimensions != c.currentProps.dimensions )
+          c.$.backend.moveOldCenterToNewCenter(c.currentProps.dimensions, c.nextProps.dimensions, c.nextState)
       }
       false // let d3 handle the update, instead of react
     })
